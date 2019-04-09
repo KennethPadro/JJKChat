@@ -1,12 +1,151 @@
 from flask import jsonify
 from dao.post import PostDAO
+from dictionaryMapping import *
+from dao.hashtag import HashtagDAO
 
 
 class PostHandler:
+
     def getAllPost(self):
         dao = PostDAO()
-        result = dao.getAllPost()
-        return jsonify(Posts=result)
+        result = dao.getAllPosts()
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapPostToDict(r))
+        return jsonify(mapped_result)
+
+    def getPostByGroupId(self, gID):
+        dao = PostDAO()
+        result = dao.getPostsByGroupID(gID)
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapPostToDict(r))
+        return jsonify(mapped_result)
+
+
+    def getPostByGroupIdDETAILED(self,gID):
+        dao = PostDAO()
+        result = dao.getPostsByGroupID(gID)
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapPostToDictDETAILED(r, self.getRepliesByPostIDDETAILED(r[0])))
+        return jsonify(mapped_result)
+
+    def getNumberOfLikesForGivenPost(self, pID):
+        dao = PostDAO()
+        result = dao.getNumberOfReactionsForGivenPost(pID, "like")
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = mapReacCountToDict(result)
+        return jsonify(mapped_result)
+
+    def getNumberOfDislikesForGivenPost(self, pID):
+        dao = PostDAO()
+        result = dao.getNumberOfReactionsForGivenPost(pID, "dislike")
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = mapReacCountToDict(result)
+        return jsonify(mapped_result)
+
+    def getListOfUsersWhoLikedPost(self, pID):
+        dao = PostDAO()
+        result = dao.getListOfUsersWhoReactedPost(pID, "like")
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapToReactDict(r))
+        return jsonify(mapped_result)
+
+    def getListOfUsersWhoDislikedPost(self, pID):
+        dao = PostDAO()
+        result = dao.getListOfUsersWhoReactedPost(pID, "dislike")
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapToReactDict(r))
+        return jsonify(mapped_result)
+
+    def getNumberOfPostsPerDay(self):
+        dao = PostDAO()
+        result = dao.getNumberOfPostsPerDay()
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapInteractionPerDayToDict(r))
+        return jsonify(mapped_result)
+
+    def getNumberOfRepliesPerDay(self):
+        dao = PostDAO()
+        result = dao.getNumberOfRepliesPerDay()
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapInteractionPerDayToDict(r))
+        return jsonify(mapped_result)
+
+    def getNumberOfLikesPerDay(self):
+        dao = PostDAO()
+        result = dao.getNumberOfLikesPerDay()
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapInteractionPerDayToDict(r))
+        return jsonify(mapped_result)
+
+    def getNumberOfDislikesPerDay(self):
+        dao = PostDAO()
+        result = dao.getNumberOfDislikesPerDay()
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapInteractionPerDayToDict(r))
+        return jsonify(mapped_result)
+
+    def getNumberOfRepliesForGivenPost(self, pID):
+        dao = PostDAO()
+        result = dao.getNumberOfRepliesForGivenPost(pID)
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapReplyCountToDict(r))
+        return jsonify(mapped_result)
+
+    def getNumberOfPostsPerDayByUser(self, uID):
+        dao = PostDAO()
+        result = dao.getNumberOfPostsPerDayByUser(uID)
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = mapInteractionPerDayToDict(result)
+        return jsonify(mapped_result)
+
+    def getRepliesByPostID(self, pID):
+        dao = PostDAO()
+        result = dao.getRepliesByPostID(pID)
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapReplyToDict(r))
+        return jsonify(mapped_result)
+
+    def getRepliesByPostIDDETAILED(self, pID):
+        dao = PostDAO()
+        result = dao.getRepliesByPostID(pID)
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapReplyToDict(r))
+        return mapped_result
 
     def getPostByID(self, pID):
         dao = PostDAO()
@@ -33,53 +172,9 @@ class PostHandler:
         result = dao.getPostsByUserID(uID)
         return jsonify(Post = result)
 
-    def getPostByGroupId(self,gID):
-        dao = PostDAO()
-        result = dao.getPostByGroupId(gID)
-        return jsonify(Post = result)
-
-    def getLikesByPostId(self,pID):
-        dao = PostDAO()
-        result = dao.getLikesByPostId(pID)
-        return jsonify(Likes = result)
-
-    def getNumberOfPostPerDay(self):
-        dao = PostDAO()
-        result = dao.getNumberOfPostPerDay()
-        return jsonify(Posts = result)
-
-    def getNumberOfRepliesPerDay(self):
-        dao = PostDAO()
-        result = dao.getNumberOfRepliesPerDay()
-        return jsonify(Replies = result)
-
-    def getNumberOfLikesPerDay(self):
-        dao = PostDAO()
-        result = dao.getNumberOfLikesPerDay()
-        return jsonify(Likes = result)
-
-    def getNumberOfDislikesPerDay(self):
-        dao = PostDAO()
-        result = dao.getNumberOfDislikesPerDay()
-        return jsonify(Dislikes = result)
-
-    def getNumberOfLikesForGivenPost(self, pID):
-        dao = PostDAO()
-        result = dao.getNumberOfLikesForGivenPost(pID)
-        return jsonify(Likes = result)
-
-    def getNumberOfDislikesForGivenPost(self, pID):
-        dao = PostDAO()
-        result = dao.getNumberOfDislikesForGivenPost(pID)
-        return jsonify(Dislikes = result)
-
-    def getNumberOfRepliesForGivenPost(self, pID):
-        dao = PostDAO()
-        result = dao.getNumberOfRepliesForGivenPost(pID)
-        return jsonify(Replies = result)
-
     def addPost(self,gID, json):
         dao = PostDAO()
+        hdao = HashtagDAO
         if len(json) != 2:
             return jsonify(Error="Malformed post request"), 400
         else:
@@ -94,17 +189,6 @@ class PostHandler:
                 return jsonify(gID), 201
             else:
                 return jsonify(Error="Unexpected attributes in post request"), 400
-
-    def getPostsPerDayByUser(self,uID):
-        dao = PostDAO()
-        result = dao.getPostsPerDayByUser(uID)
-        return jsonify(Posts = result)
-
-
-    def getNumberOfPostPerDayByUser(self, uID):
-        dao = PostDAO()
-        result = "5"
-        return  jsonify(result)
 
     def react(self, gID, json):
         return "You reacted to this post"

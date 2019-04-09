@@ -1,12 +1,45 @@
 from flask import jsonify
 from dao.group import GroupDAO
+from dictionaryMapping import *
 
 
 class GroupHandler:
-    def getAllgroups(self):
+
+    def getAllGroups(self):
         dao = GroupDAO()
         result = dao.getAllGroups()
-        return jsonify(Users=result)
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapGroupToDict(r))
+        return jsonify(mapped_result)
+
+    def getGroupOwnerByGroupID(self, gID):
+        dao = GroupDAO()
+        result = dao.getGroupOwnerByGroupID(gID)
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = mapUserToDict(result)
+        return jsonify(mapped_result)
+
+    def getGroupMembersByGroupID(self, gID):
+        dao = GroupDAO()
+        result = dao.getGroupMembersByGroupID(gID)
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = []
+        for r in result:
+            mapped_result.append(mapUserToDict(r))
+        return jsonify(mapped_result)
+
+    def getGroupByGroupID(self, gID):
+        dao = GroupDAO()
+        result = dao.getGroupByGroupID(gID)
+        if not result:
+            return jsonify(Error="Not found"), 404
+        mapped_result = mapGroupToDict(result)
+        return jsonify(mapped_result)
 
     def createGroup(self, json):
         dao = GroupDAO()
@@ -26,28 +59,13 @@ class GroupHandler:
         if len(json) != 2:
             return jsonify(Error="Malformed post request"), 400
         else:
-            groupId = json['groupId']
+            groupId = json['groupid']
             ownerId = json['ownerid']
             if groupId and ownerId:
                 result = dao.deleteGroup(groupId, ownerId)
                 return jsonify(result), 201
             else:
                 return jsonify(Error="Unexpected attributes in post request"), 400
-
-    def getGroupById(self, gID):
-        dao = GroupDAO()
-        result = dao.getGroupByID(gID)
-        return jsonify(User=result)
-
-    def getGroupOwnerByID(self, gID):
-        dao = GroupDAO()
-        result = dao.getGroupOwnerByID(gID)
-        return jsonify(Owner= result)
-
-    def getMembersByGroupID(self, gID):
-        dao = GroupDAO()
-        result = dao.getMembersByGroupID(gID)
-        return jsonify(Members= result)
 
     def addMember(self, gID, json):
         dao = GroupDAO()
@@ -78,4 +96,4 @@ class GroupHandler:
         dao = GroupDAO()
         if groupname:
             result = dao.getGroupByName(groupname)
-        return jsonify(result)
+            return jsonify(result)
