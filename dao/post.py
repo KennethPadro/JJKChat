@@ -1,4 +1,3 @@
-from dao.data import Data
 import psycopg2
 from config.dbconfig import pg_config
 
@@ -9,8 +8,6 @@ class PostDAO:
         #DATABASE_URL = 'postgres://postgres:databaseclass@localhost:5432/jjkchat'
         DATABASE_URL = "dbname=%s user=%s password=%s host=%s" % (pg_config['dbname'], pg_config['user'], pg_config['passwd'], pg_config['host'])
         self.conn = psycopg2._connect(DATABASE_URL)
-
-    posts = Data().posts
 
     def getAllPosts(self):
         cursor = self.conn.cursor()
@@ -38,7 +35,7 @@ class PostDAO:
 	                    GROUP BY post_id)
                 SELECT post.post_id, post.media, post.message, post.post_date, post.chat_group_id, post.user_id,likes, dislikes, users.username, users.first_name, users.last_name 
                 FROM post natural inner join users LEFT JOIN plikes on post.post_id = plikes.post_id LEFT JOIN pdislikes on post.post_id = pdislikes.post_id
-                WHERE post.chat_group_id =%s;"""
+                WHERE post.chat_group_id =%s ORDER BY post.post_id DESC;"""
         try:
             cursor.execute(query,(gID,))
         except psycopg2.Error as e:
@@ -58,6 +55,7 @@ class PostDAO:
         result = cursor.fetchone()
         return result
 
+
     def getListOfUsersWhoReactedPost(self, pID, reaction):
         cursor = self.conn.cursor()
         query = "SELECT  user_id, first_name, last_name, username, reaction_date FROM reactions NATURAL INNER JOIN users WHERE post_id = %s AND reaction = %s"
@@ -72,7 +70,7 @@ class PostDAO:
 
     def getNumberOfPostsPerDay(self):
         cursor = self.conn.cursor()
-        query = "SELECT post_date AS day, count(*) AS total FROM post GROUP BY post_date"
+        query = "SELECT post_date AS day, count(*) AS total FROM post GROUP BY post_date ORDER by post_date asc"
         try:
             cursor.execute(query)
         except psycopg2.Error as e:
@@ -84,7 +82,7 @@ class PostDAO:
 
     def getNumberOfRepliesPerDay(self):
         cursor = self.conn.cursor()
-        query = "SELECT reply_date AS day, count(*) AS total FROM reply GROUP BY reply_date"
+        query = "SELECT reply_date AS day, count(*) AS total FROM reply GROUP BY reply_date ORDER by reply_date asc"
         try:
             cursor.execute(query)
         except psycopg2.Error as e:
@@ -96,7 +94,7 @@ class PostDAO:
 
     def getNumberOfLikesPerDay(self):
         cursor = self.conn.cursor()
-        query = "SELECT reaction_date AS day, count(*) AS total FROM reactions WHERE reaction = 'like' GROUP BY reaction_date"
+        query = "SELECT reaction_date AS day, count(*) AS total FROM reactions WHERE reaction = 'like' GROUP BY reaction_date ORDER by reaction_date asc"
         try:
             cursor.execute(query)
         except psycopg2.Error as e:
@@ -108,7 +106,7 @@ class PostDAO:
 
     def getNumberOfDislikesPerDay(self):
         cursor = self.conn.cursor()
-        query = "SELECT reaction_date AS day, count(*) AS total FROM reactions WHERE reaction = 'dislike' GROUP BY reaction_date"
+        query = "SELECT reaction_date AS day, count(*) AS total FROM reactions WHERE reaction = 'dislike' GROUP BY reaction_date ORDER by reaction_date asc"
         try:
             cursor.execute(query)
         except psycopg2.Error as e:
@@ -125,10 +123,9 @@ class PostDAO:
             cursor.execute(query, (pID,))
         except psycopg2.Error as e:
             return
-        result = []
-        for row in cursor:
-            result.append(row)
+        result = cursor.fetchone()
         return result
+
 
     def getNumberOfPostsPerDayByUser(self, uID):
         cursor = self.conn.cursor()
@@ -154,7 +151,7 @@ class PostDAO:
 
     def getRepliesByPostID(self, pID):
         cursor = self.conn.cursor()
-        query = "SELECT reply_id, reply_date, reply_message, post_id, username, first_name, last_name FROM reply natural inner join users WHERE post_id =%s"
+        query = "SELECT reply_id, reply_date, reply_message, post_id, username, first_name, last_name FROM reply natural inner join users WHERE post_id =%s ORDER BY reply_id DESC "
         try:
             cursor.execute(query,(pID, ))
         except psycopg2.Error as e:
@@ -164,25 +161,59 @@ class PostDAO:
             result.append(row)
         return result
 
-    def getPostByID(self, pID):
-        post = list(filter(lambda u: u['post_id'] == pID, self.posts))
-        return post
+    def addPost(self, message, chat_group_id, user_id):
+        cursor = self.conn.cursor()
+        query = "INSERT INTO post (message, post_date, chat_group_id, user_id) VALUES(%s, NOW(), %s, %s) RETURNING post_id"
+        cursor.execute(query, (message, chat_group_id, user_id, ))
+        result = cursor.fetchone()
+        post_id = result[0]
+        self.conn.commit()
+        return post_id
 
-    def getMessageByPostID(self,pID):
-        message = list(filter(lambda u: u['post_id'] == pID, self.posts))
-        return message
+    def addPostMedia(self, post_id, filename):
+        cursor = self.conn.cursor()
+        query = "UPDATE post SET media = %s WHERE post_id = %s RETURNING post_id"
+        cursor.execute(query, (filename, post_id, ))
+        result = cursor.fetchone()
+        post_id = result[0]
+        self.conn.commit()
+        return post_id
 
-    def getMediaByPostID(self, pID):
-        media = list(filter(lambda u: u['post_id'] == pID, self.posts))
-        return media
+    def insertHashtag(self, hashtag, post_id):
+        cursor = self.conn.cursor()
+        query = "INSERT INTO hashtags (hashtag, post_id) VALUES(%s, %s)"
+        cursor.execute(query, (hashtag, post_id,))
+        self.conn.commit()
+        return "Done"
 
-    def getAuthorByPostID(self, pID):
-        user = list(filter(lambda u: u['post_id'] == pID, self.posts))
-        return user
+    def reactToPost(self, uID, pID, reaction):
+        cursor = self.conn.cursor()
+        query = "INSERT INTO reactions VALUES (%s ,%s,%s,now()) RETURNING  user_id, post_id"
+        try:
+            cursor.execute(query, (reaction, uID, pID,))
+        except psycopg2.IntegrityError:
+            return
+        result = cursor.fetchone()
+        (uID, pID) = result[0], result[1]
+        self.conn.commit()
+        return uID, pID
 
-    def getPostsByUserID(self, uID):
-        posts = list(filter(lambda u: u['post_author_id'] == uID, self.posts))
-        return posts
+    # def dislikeaPost(self,uID,pID):
+    #     cursor = self.conn.cursor()
+    #     query = "INSERT INTO reactions VALUES ('dislike',%s,%s,now()) RETURNING  user_id, post_id"
+    #     cursor.execute(query, (uID, pID,))
+    #     result = cursor.fetchone()
+    #     (uID, pID) = result[0], result[1]
+    #     self.conn.commit()
+    #     return uID, pID
 
-    def addPost(self, gID, aID, message,media):
-        return "Message posted id 5"
+    def replyToPostID(self, reply_message, post_id, user_id):
+        cursor = self.conn.cursor()
+        query = "INSERT INTO reply (reply_date, reply_message, post_id, user_id) VALUES (now(), %s, %s, %s) RETURNING reply_id"
+        cursor.execute(query, (reply_message, post_id, user_id))
+        result = cursor.fetchone()
+        reply_id = result[0]
+        self.conn.commit()
+        return reply_id
+
+

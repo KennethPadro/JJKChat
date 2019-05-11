@@ -91,6 +91,6 @@ INSERT INTO contact (user_id, contact_user_id) VALUES(2, 1);
 
 INSERT INTO hashtags (hashtag, post_id) VALUES('#acho', 1);
 
-INSERT INTO reactions (reaction, user_id, post_id, reaction_date) VALUES('like', 2, 1, now())
+INSERT INTO reactions (reaction, user_id, post_id, reaction_date) VALUES('like', 2, 1, now());
 
 INSERT INTO reply (reply_date, reply_message, post_id, user_id) VALUES(now(), 'Saludos a todos los presentes en esta noche tan majestuosa', 1, 2)

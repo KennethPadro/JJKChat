@@ -1,4 +1,3 @@
-from dao.data import Data
 from config.dbconfig import pg_config
 import psycopg2
 
@@ -9,12 +8,6 @@ class UserDAO:
         #DATABASE_URL = 'postgres://postgres:databaseclass@localhost:5432/jjkchat'
         DATABASE_URL = "dbname=%s user=%s password=%s host=%s" % (pg_config['dbname'], pg_config['user'], pg_config['passwd'], pg_config['host'])
         self.conn = psycopg2._connect(DATABASE_URL)
-
-    users = Data().users
-    groups = Data().groups
-    contacts = Data().contacts
-    posts = Data().posts
-    members = Data().group_members
 
     def getAllUsers(self):
         cursor = self.conn.cursor()
@@ -109,23 +102,43 @@ class UserDAO:
         return result
 
     def loginUser(self, username, password):
-        login = "Login Succesfull using " + username + " and " + password
-        return login
+        cursor = self.conn.cursor()
+        query = "SELECT user_id, password = %s as authenticate from users where username = %s"
+        cursor.execute(query, (password, username,))
+        result = cursor.fetchone()
+        if not result:
+            return None
+        return result
 
-    def registerUser(self,username, password, firstname, lastname, phone, email):
-        return "5"
+    def registerUser(self, first_name, last_name, email, phone, password, username):
+        cursor = self.conn.cursor()
+        query = "INSERT INTO users (first_name, last_name, email, phone, password, username) VALUES(%s,%s,%s,%s,%s,%s) RETURNING user_id;"
+        cursor.execute(query, (first_name, last_name, email, phone, password, username,))
+        result = cursor.fetchone()
+        user_id = result[0]
+        self.conn.commit()
+        return user_id
 
-    def getUserByFirstName(self,uFN):
-        user = list(filter(lambda u: u['first_name'] == uFN, self.users))
-        return user
+    def getUserID1(self, first_name, last_name, email, phone):
+        cursor = self.conn.cursor()
+        query = "SELECT user_id FROM users WHERE first_name = %s AND last_name = %s AND email = %s AND phone = %s"
+        cursor.execute(query, (first_name, last_name, email, phone,))
+        result = cursor.fetchone()
+        return result
 
-    def getUserByLastName(self, uLN):
-        user = list(filter(lambda u: u['last_name'] == uLN, self.users))
-        return user
+    def getUserID2(self, first_name, last_name, phone):
+        cursor = self.conn.cursor()
+        query = "SELECT user_id FROM users WHERE first_name = %s AND last_name = %s AND phone = %s"
+        cursor.execute(query, (first_name, last_name, phone,))
+        result = cursor.fetchone()
+        return result
 
-    def getUserByPhone(self, uPn):
-        user = list(filter(lambda u: u['phone'] == uPn, self.users))
-        return user
+    def getUserID3(self, first_name, last_name, email):
+        cursor = self.conn.cursor()
+        query = "SELECT user_id FROM users WHERE first_name = %s AND last_name = %s AND email = %s"
+        cursor.execute(query, (first_name, last_name, email,))
+        result = cursor.fetchone()
+        return result
 
     def getUserByEmail(self, uEm):
         user = list(filter(lambda u: u['email'] == uEm, self.users))
@@ -135,5 +148,17 @@ class UserDAO:
         posts = list(filter(lambda u: u['user_id'] == uID, self.users))
         return posts
 
-    def addContact(self,uID, firstname, lastname, phone, email):
+    def addContact(self, uID, contact_uID):
+        cursor = self.conn.cursor()
+        query = "INSERT INTO contact VALUES(%s,%s);"
+        cursor.execute(query, (uID, contact_uID,))
+        self.conn.commit()
         return "Done"
+
+    def deleteContact(self, uID, contact_uID):
+        cursor = self.conn.cursor()
+        query = "DELETE FROM contact WHERE user_id = %s AND contact_user_id = %s RETURNING contact_user_id"
+        cursor.execute(query, (uID, contact_uID,))
+        result = cursor.fetchone()
+        self.conn.commit()
+        return result

@@ -1,8 +1,15 @@
 from flask import jsonify
 from dao.post import PostDAO
 from dictionaryMapping import *
-from dao.hashtag import HashtagDAO
+from werkzeug.utils import secure_filename
+import os
 
+UPLOAD_FOLDER = os.getcwd() + '/static' #change to get dynamic
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 class PostHandler:
 
@@ -25,7 +32,6 @@ class PostHandler:
         for r in result:
             mapped_result.append(mapPostToDict(r))
         return jsonify(mapped_result)
-
 
     def getPostByGroupIdDETAILED(self,gID):
         dao = PostDAO()
@@ -55,7 +61,7 @@ class PostHandler:
         dao = PostDAO()
         result = dao.getListOfUsersWhoReactedPost(pID, "like")
         if not result:
-            return jsonify(Error="Not found"), 404
+            return jsonify(Error="Not found")
         mapped_result = []
         for r in result:
             mapped_result.append(mapToReactDict(r))
@@ -65,7 +71,7 @@ class PostHandler:
         dao = PostDAO()
         result = dao.getListOfUsersWhoReactedPost(pID, "dislike")
         if not result:
-            return jsonify(Error="Not found"), 404
+            return jsonify(Error="Not found")
         mapped_result = []
         for r in result:
             mapped_result.append(mapToReactDict(r))
@@ -116,9 +122,7 @@ class PostHandler:
         result = dao.getNumberOfRepliesForGivenPost(pID)
         if not result:
             return jsonify(Error="Not found"), 404
-        mapped_result = []
-        for r in result:
-            mapped_result.append(mapReplyCountToDict(r))
+        mapped_result = mapReplyCountToDict(result)
         return jsonify(mapped_result)
 
     def getNumberOfPostsPerDayByUser(self, uID):
@@ -147,51 +151,74 @@ class PostHandler:
             mapped_result.append(mapReplyToDict(r))
         return mapped_result
 
-    def getPostByID(self, pID):
+    def addPost(self, gID, request):
         dao = PostDAO()
-        result = dao.getPostByID(pID)
-        return jsonify(Post=result)
 
-    def getMessageByPostID(self, pID):
-        dao = PostDAO()
-        result = dao.getMessageByPostID(pID)
-        return jsonify(Message=result)
+        chat_group_id = gID
+        user_id = request.values['user_id']
+        message = request.values['message']
+        file = request.files['file']
 
-    def getMediaByPostID(self,pID):
-        dao = PostDAO()
-        result = dao.getMediaByPostID(pID)
-        return jsonify(Contacts = result)
+        if chat_group_id and user_id and message and file:
 
-    def getAuthorByPostID(self,pID):
-        dao = PostDAO()
-        result = dao.getAuthorByPostID(pID)
-        return jsonify(Author = result)
-
-    def getPostsByUserID(self,uID):
-        dao = PostDAO()
-        result = dao.getPostsByUserID(uID)
-        return jsonify(Post = result)
-
-    def addPost(self,gID, json):
-        dao = PostDAO()
-        hdao = HashtagDAO
-        if len(json) != 2:
-            return jsonify(Error="Malformed post request"), 400
-        else:
-            groupID = json['groupID']
-            author = json['author']
-            message = json['message']
-            media = json['media']
-
-            if groupID and author and message and media:
-                gID = dao.addPost(groupID, author,message, media)
-
-                return jsonify(gID), 201
-            else:
+            if file.filename == '':
                 return jsonify(Error="Unexpected attributes in post request"), 400
 
-    def react(self, gID, json):
-        return "You reacted to this post"
+            if allowed_file(file.filename):
 
-    def getReaction(self, json):
-        return"55 likes"
+                post_id = dao.addPost(message, chat_group_id, user_id)
+
+                filename = "img_" + str(post_id) + "_" + secure_filename(file.filename)
+
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+                dao.addPostMedia(post_id, filename)
+
+                hashtags = {tag.strip("#") for tag in message.split() if tag.startswith("#")}
+
+                noDupHashtags = []
+
+                for tag in hashtags:
+                    if tag.lower() not in noDupHashtags:
+                        noDupHashtags.append(tag.lower())
+                        dao.insertHashtag(tag.lower(), post_id)
+
+                return jsonify(post_id), 201
+
+            else:
+                return jsonify(Error="NO filename"), 400
+        else:
+            return jsonify(Error="Unexpected attributes in post request"), 400
+
+    def reactToPost(self, post_id, json, reaction):
+        if json is None:
+            return jsonify(Error="Malformed post request"), 400
+        else:
+            user_id = json['user_id']
+            dao = PostDAO()
+            result = dao.reactToPost(user_id, post_id, reaction)
+            if not result:
+                return jsonify(Error="Already reacted to this post"), 777
+            return jsonify(result)
+
+    # def dislikeaPost(self, json):
+    #     if json is None:
+    #         return jsonify(Error="Malformed post request"), 400
+    #     else:
+    #         user_id = json['user_id']
+    #         post_id = json['post_id']
+    #         dao = PostDAO()
+    #         result = dao.dislikeaPost(user_id,post_id)
+    #         return jsonify(result)
+
+    def replyToPostID(self, post_id, json):
+        if json is None:
+            return jsonify(Error="Malformed post request"), 400
+        else:
+            reply_message = json['reply_message']
+            user_id = json['user_id']
+
+            dao = PostDAO()
+            result = dao.replyToPostID(reply_message, post_id, user_id)
+            return jsonify(result)
+

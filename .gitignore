@@ -3,4 +3,3 @@
 .idea/*
 venv/*
 *.pyc
-config/dbconfig.py

@@ -39,7 +39,6 @@ def mapPostToDictDETAILED(row, reply):
     result['first_name'] = row[9]
     result['last_name'] = row[10]
     result['replies'] = reply
-
     return result
 
 def mapToReactDict(row):

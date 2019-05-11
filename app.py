@@ -1,55 +1,23 @@
-from flask import Flask, request, flash, redirect, url_for
-from werkzeug.utils import secure_filename
+from flask import Flask, request
 from handler.user import UserHandler
 from handler.group import GroupHandler
 from handler.post import PostHandler
 from handler.hashtag import HashtagHandler
-from flask_cors import CORS, cross_origin
-import os
-
-UPLOAD_FOLDER = '/Users/kennethpadro/PycharmProjects/JJKChat/static' #change to get dynamic
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
-
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 CORS(app)
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_file():
-    if request.method == 'POST':
-        # check if the post request has the file part
-        if 'file' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
-        file = request.files['file']
-        # if user does not select file, browser also
-        # submit an empty part without filename
-        if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            #return redirect(url_for('upload_file', filename=filename))
-    return '''
-    <!doctype html>
-    <title>Upload new File</title>
-    <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
-    '''
 
 @app.route('/')
 def home():
     return "Welcome to JJKChat api"
+
+#Register to the application.
+@app.route('/JJKChat/register', methods=['POST'])
+def registerUser():
+    return UserHandler().registerUser(request.json)
 
 #Login an existing user
 @app.route('/JJKChat/login', methods=['POST'])
@@ -57,15 +25,12 @@ def loginUser():
     return UserHandler().loginUser(request.json)
 
 #Get all users #Search for a user #Register a user
-@app.route('/JJKChat/user', methods=['GET','POST'])
+@app.route('/JJKChat/user', methods=['GET'])
 def getAllUsers():
-    if request.method == 'GET':
-        if request.args:
-            return UserHandler().searchUser(request.args)
-        else:
-            return UserHandler().getAllUsers()
-    if request.method == 'POST':
-        return UserHandler().registerUser(request.json)
+    if request.args:
+        return UserHandler().searchUser(request.args)
+    else:
+        return UserHandler().getAllUsers()
 
 #Gets contacts of an user . Add user to contacts
 @app.route('/JJKChat/user/<int:uID>/contact', methods=['GET','POST','DELETE'])
@@ -81,11 +46,6 @@ def getContactsByUserID(uID):
 @app.route('/JJKChat/user/<int:uID>', methods=['GET'])
 def getUserByID(uID):
     return UserHandler().getUserById(uID)
-
-#Get specific user posts by user id
-@app.route('/JJKChat/user/<int:uID>/post', methods=['GET'])
-def getPostsByUserID(uID):
-    return PostHandler().getPostsByUserID(uID)
 
 #get what groups the user is owner of
 @app.route('/JJKChat/user/<int:uID>/ownedgroups', methods=['GET'])
@@ -123,20 +83,13 @@ def getPostByGroupId(gID):
     if request.method == 'GET':
         return PostHandler().getPostByGroupId(gID)
     elif request.method == 'POST':
-        return PostHandler().addPost(gID,request.json)
+        return PostHandler().addPost(gID, request)
 
 #Get all posts by group id
 @app.route('/JJKChat/group/<int:gID>/detailedpost', methods=['GET'])
 def getPostByGroupIdDETAILED(gID):
     if request.method == 'GET':
         return PostHandler().getPostByGroupIdDETAILED(gID)
-
-@app.route('/JJKChat/group/<int:gID>/post/react', methods=['GET','POST'])
-def reactToaPost(gID):
-    if request.method == 'GET':
-        return PostHandler().getReaction(request.json)
-    elif request.method == 'POST':
-        return PostHandler().react(gID,request.json)
 
 #Get specific group by ID
 @app.route('/JJKChat/group/<int:gID>', methods=['GET'])
@@ -149,20 +102,45 @@ def getOwnerByGroupID(gID):
     return GroupHandler().getGroupOwnerByGroupID(gID)
 
 #Get all posts
-@app.route('/JJKChat/post', methods=['GET','POST'])
+@app.route('/JJKChat/post', methods=['GET'])
 def getAllPost():
     if request.method == 'GET':
         return PostHandler().getAllPost()
 
-#Get specific post by Id
-@app.route('/JJKChat/post/<int:pID>', methods=['GET'])
-def getPostByID(pID):
-    return PostHandler().getPostByID(pID)
+# #Get specific post by Id
+# @app.route('/JJKChat/post/<int:pID>', methods=['GET'])
+# def getPostByID(pID):
+#     return PostHandler().getPostByID(pID)
 
 #Get replies from post by post id
-@app.route('/JJKChat/post/<int:pID>/replies', methods=['GET'])
+@app.route('/JJKChat/post/<int:pID>/replies', methods=['GET','POST'])
 def getRepliesByPostID(pID):
-    return PostHandler().getRepliesByPostID(pID)
+    if request.method == 'POST':
+        return PostHandler().replyToPostID(pID, request.json)
+    if request.method == 'GET':
+        return PostHandler().getRepliesByPostID(pID)
+
+# @app.route('/JJKChat/post/like', methods=['POST'])
+# def likeaPost():
+#         return PostHandler().reactToPost(request.json, 'like')
+#
+# @app.route('/JJKChat/post/dislike', methods=['POST'])
+# def dislikeaPost():
+#         return PostHandler().reactToPost(request.json, 'dislike')
+
+@app.route('/JJKChat/post/<int:pID>/likes', methods=['GET','POST'])
+def getListOfUsersWhoLikedPost(pID):
+    if request.method == 'GET':
+        return PostHandler().getListOfUsersWhoLikedPost(pID)
+    if request.method == 'POST':
+        return PostHandler().reactToPost(pID, request.json, 'like')
+
+@app.route('/JJKChat/post/<int:pID>/dislikes', methods=['GET','POST'])
+def getListOfUsersWhoDislikedPost(pID):
+    if request.method == 'GET':
+        return PostHandler().getListOfUsersWhoDislikedPost(pID)
+    if request.method == 'POST':
+        return PostHandler().reactToPost(pID, request.json, 'dislike')
 
 #DELETEEEEEEEEEEEE???
 # Statistics 2 Get total number of posts on a certain date
@@ -186,7 +164,6 @@ def getNumberOfDislikesPerDay():
     return PostHandler().getNumberOfDislikesPerDay()
 
 #Statistics 9
-#********************METODO TEMPORERO. LA IDEA ES PASARLE EL REACTION COMO PARAMETRO*****************
 @app.route('/JJKChat/post/<int:pID>/likes/count', methods=['GET'])
 def getNumberOfLikesForGivenPost(pID):
     return PostHandler().getNumberOfLikesForGivenPost(pID)
@@ -208,15 +185,6 @@ def getNumberOfPostsPerDayByUser(uID):
 @app.route('/JJKChat/user/mostactive', methods=['GET'])
 def getMostActiveUser():
     return UserHandler().getMostActiveUser()
-
-#********************METODO TEMPORERO. LA IDEA ES PASARLE EL REACTION COMO PARAMETRO*****************
-@app.route('/JJKChat/post/<int:pID>/likes', methods=['GET'])
-def getListOfUsersWhoLikedPost(pID):
-    return PostHandler().getListOfUsersWhoLikedPost(pID)
-
-@app.route('/JJKChat/post/<int:pID>/dislikes', methods=['GET'])
-def getListOfUsersWhoDislikedPost(pID):
-    return PostHandler().getListOfUsersWhoDislikedPost(pID)
 
 # Statistics 2 Get total number of posts on a certain date
 @app.route('/JJKChat/post/countperday', methods=['GET'])
