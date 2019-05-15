@@ -80,17 +80,9 @@ class UserDAO:
     def getMostActiveUser(self):
         cursor = self.conn.cursor()
         query = """
-                     SELECT user_id, CAST (SUM(r) AS INTEGER)AS interactions
-                     FROM(
-                     SELECT user_id, count(*) AS r from reactions GROUP BY user_id
-                     UNION ALL
-                     SELECT user_id, count(*) FROM post GROUP BY user_id
-                     UNION ALL
-                     SELECT user_id, count(*) AS re FROM reply GROUP BY user_id
-                     ) AS queseyo
-                     GROUP BY user_id
-                     ORDER BY interactions DESC
-                     LIMIT 1
+                      Select user_id, date, Sum(interactions) as interactions from (SELECT user_id, reply_date as date, count(*) AS interactions from reply GROUP BY date, user_id UNION All 
+ select user_id, post_date as date, count(*) as interactions from post GROUP BY date, user_id UNION All
+ SELECT user_id, reaction_date as date, count(*) as interactions from reactions GROUP BY date, user_id) as culo GROUP BY user_id, date
                      """
         try:
             cursor.execute(query)
